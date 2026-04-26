@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="How I built a Lily58 RGB MX split keyboard from a bare kit — soldering, firmware, and the bug that killed all 70 LEDs." />
+  <title>Building the Lily58 RGB MX — Victor Galvez</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <header id="site-header">
+    <div class="site-header-inner">
+      <a href="https://victorgalvez.dev" class="back-link">← victorgalvez.dev</a>
+      <a href="https://github.com/victorgalvez/lily58-config" target="_blank" rel="noopener" class="github-link">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+        Firmware source
+      </a>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ─── ARTICLE HEADER ───────────────────────── -->
+    <div class="article-header">
+      <div class="article-meta">
+        <span class="meta-tag">Build Log</span>
+        <span class="meta-sep">·</span>
+        <time>March 2025</time>
+        <span class="meta-sep">·</span>
+        <span>Victor Galvez</span>
+      </div>
+      <h1 class="article-title">Building the&nbsp;Lily58&nbsp;RGB&nbsp;MX</h1>
+      <p class="article-lead">
+        How I hand-soldered a 58-key split keyboard from a bare kit,
+        wrote custom QMK&nbsp;+&nbsp;Vial firmware from scratch,
+        and debugged a WS2812 chain that killed all&nbsp;70&nbsp;LEDs.
+      </p>
+      <div class="article-chips">
+        <span>PandaKB</span>
+        <span>QMK + Vial</span>
+        <span>RP2040</span>
+        <span>70 RGB LEDs</span>
+        <span>200 solder points</span>
+      </div>
+    </div>
+
+    <article>
+
+      <!-- ─── WHY ───────────────────────────────── -->
+      <section class="prose-section">
+        <h2>Why a split keyboard</h2>
+        <p>
+          After months of coding 8+ hours a day I started getting numbness and tingling in my wrists —
+          early signs of carpal tunnel. A traditional keyboard forces both hands together,
+          wrists bent inward, for hours at a time.
+        </p>
+        <p>
+          I already owned a <strong>ZSA Moonlander</strong>. It helped, but I wanted to go further:
+          understand every layer myself, from solder joint to firmware byte.
+          So I bought a bare kit and built one from scratch.
+        </p>
+        <div class="callout">
+          <span class="callout-icon">→</span>
+          <p>
+            Split keyboards keep hands at shoulder width — wrists straight, thumbs neutral.
+            Thumb clusters offload work from the pinkies.
+            Layers mean symbols are always one key off the home row.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── KIT ───────────────────────────────── -->
+      <section class="prose-section">
+        <h2>The kit — PandaKB Lily58 RGB MX</h2>
+        <p>
+          I picked the <a href="https://pandakb.com/guides/lily58-rgb-mx-build-guide/" target="_blank" rel="noopener">PandaKB Lily58 RGB MX</a>:
+          a well-documented open-source design with per-key RGB, hotswap sockets,
+          and dual RP2040 microcontrollers.
+          Both halves communicate over a TRRS cable.
+        </p>
+
+        <h3>Bill of materials</h3>
+        <div class="specs-table">
+          <div class="st-row"><span class="st-k">Diodes</span><span class="st-v">58× (one per key, stripe direction matches PCB silkscreen)</span></div>
+          <div class="st-row"><span class="st-k">Per-key LEDs</span><span class="st-v">58× SK6812MINI-E — face up toward keycaps</span></div>
+          <div class="st-row"><span class="st-k">Underglow LEDs</span><span class="st-v">12× WS2812B-5050 — face down toward PCB</span></div>
+          <div class="st-row"><span class="st-k">Switch sockets</span><span class="st-v">58× hotswap MX</span></div>
+          <div class="st-row"><span class="st-k">Encoders</span><span class="st-v">2× EC11 rotary</span></div>
+          <div class="st-row"><span class="st-k">MCU</span><span class="st-v">2× RP2040 ProMicro (one per half)</span></div>
+          <div class="st-row"><span class="st-k">Display</span><span class="st-v">2× 0.91" OLED module</span></div>
+          <div class="st-row"><span class="st-k">TRRS jacks</span><span class="st-v">2× (wired configuration)</span></div>
+          <div class="st-row"><span class="st-k">Other</span><span class="st-v">Reset switches, header pins/sockets, USBLC6-2SC6, resistors</span></div>
+        </div>
+
+        <h3>Tools needed</h3>
+        <div class="specs-table">
+          <div class="st-row"><span class="st-k">Soldering iron</span><span class="st-v">Temperature-adjustable (300–350 °C recommended)</span></div>
+          <div class="st-row"><span class="st-k">Solder wire</span><span class="st-v">60%+ tin content</span></div>
+          <div class="st-row"><span class="st-k">Tweezers</span><span class="st-v">Antistatic, fine-tip for SMD components</span></div>
+          <div class="st-row"><span class="st-k">Solder paste</span><span class="st-v">Optional — helps with LEDs and diodes</span></div>
+          <div class="st-row"><span class="st-k">Multimeter</span><span class="st-v">Essential for debugging (saved my LED matrix)</span></div>
+        </div>
+      </section>
+
+      <!-- ─── BUILD PROCESS ─────────────────────── -->
+      <section class="prose-section">
+        <h2>The build process</h2>
+        <p>
+          The <a href="https://pandakb.com/guides/lily58-rgb-mx-build-guide/" target="_blank" rel="noopener">PandaKB build guide</a>
+          recommends a specific order — I followed it closely because
+          desoldering is painful on a board this dense.
+          The golden rule: <em>"Think twice, solder once."</em>
+        </p>
+
+        <div class="build-steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <strong>Diodes</strong> — match stripe direction to PCB silkscreen. These are small and easy to get wrong; do them first while you have a clear board.
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <strong>Per-key RGB LEDs (SK6812MINI-E)</strong> — light-emitting face up, toward the keycaps. Align the notch angle with the PCB marking. Fast strokes: under 3 seconds per LED.
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <strong>Underglow LEDs (WS2812B-5050)</strong> — face down, toward the PCB. Same notch-alignment rule.
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div class="step-body">
+              <strong>Switch sockets</strong> — hotswap MX. Straightforward; just make sure both pads wet properly.
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">5</div>
+            <div class="step-body">
+              <strong>USBLC6-2SC6 &amp; resistors</strong> — bottom side, wired config only. Protects the USB data lines.
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">6</div>
+            <div class="step-body">
+              <strong>MCU (RP2040)</strong> — chip face down, leave the two top holes open. Trim protruding pins after soldering. Handle the USB port carefully — it's the most fragile part.
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">7</div>
+            <div class="step-body">
+              <strong>Reset switch, OLED, TRRS jack, encoders</strong> — in that order. Screen sockets into female headers; TRRS only for wired builds.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── VIDEO (CONTEXTUAL) ────────────────── -->
+      <figure class="build-figure">
+        <div class="build-video">
+          <video id="build-video" src="/teaser.mp4" autoplay muted loop playsinline></video>
+          <div class="video-controls">
+            <span class="video-label">Build process · Lily58 RGB MX · ~2 hrs compressed</span>
+            <button id="sound-btn">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M9 3L5 6H2v4h3l4 3V3z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+                <path d="M13 5.5c.8.9 1.3 2.1 1.3 3.5s-.5 2.6-1.3 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                <line id="mute-slash" x1="12" y1="4" x2="4" y2="12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+              </svg>
+              <span id="sound-label">Unmute</span>
+            </button>
+          </div>
+        </div>
+        <figcaption>Soldering the 58 hotswap sockets, LED chain, and encoders. The reveal at 1:41 shows first light.</figcaption>
+      </figure>
+
+      <!-- ─── THE BUG ────────────────────────────── -->
+      <section class="prose-section">
+        <h2>The bug: all 70 LEDs went dark</h2>
+        <p>
+          After full assembly the RGB matrix wouldn't light up. Not one LED.
+          Both WS2812B-5050 (underglow) and SK6812MINI-E (per-key) chains were dead.
+        </p>
+        <p>
+          WS2812-type LEDs run as a single daisy chain — data flows
+          LED 1 → 2 → 3 → … → 70. If LED #1 fails, every LED downstream
+          receives no signal and stays dark.
+        </p>
+        <blockquote>
+          A multimeter traced the break to the very first LED in the chain.
+          Reflowed the solder joint. All 70 came back on.
+        </blockquote>
+
+        <div class="callout callout-warn">
+          <span class="callout-icon">↯</span>
+          <p>
+            <strong>Common issue from PandaKB guide:</strong>
+            Incorrect RGB display or a dead matrix almost always means a bad LED solder joint
+            or wrong orientation on one of the early LEDs in the chain.
+            Always reflow LED #1 before replacing components.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── FIRMWARE ──────────────────────────── -->
+      <section class="prose-section">
+        <h2>Firmware: QMK + Vial</h2>
+        <p>
+          The stock PandaKB binary had a split-hand detection bug on RP2040 —
+          I compiled from source using the <strong>QMK Vial fork</strong>.
+          Vial adds a live USB remap GUI: rearrange any key without recompiling or reflashing.
+        </p>
+        <p>
+          My layout is adapted from the ZSA Moonlander I used before.
+          Every programming symbol sits one key off the home row on Layer 1.
+          Went from <strong>60 WPM → 15 WPM</strong> the first week.
+          Back to faster than before — and the wrist pain is gone.
+        </p>
+      </section>
+
+    </article>
+
+    <!-- ─── KEYMAP ─────────────────────────────── -->
+    <section id="keymap-section">
+      <div class="keymap-header">
+        <h2>Keymap — 4 layers</h2>
+        <p>Click a layer to see its bindings. Hold-tap keys show both actions.</p>
+      </div>
+
+      <div class="layer-tabs" role="tablist">
+        <button class="ltab active" data-layer="0" role="tab">00 · Default</button>
+        <button class="ltab" data-layer="1" role="tab">01 · Symbols</button>
+        <button class="ltab" data-layer="2" role="tab">02 · Mouse + Media</button>
+        <button class="ltab" data-layer="3" role="tab">03 · Gaming</button>
+      </div>
+
+      <p class="layer-caption" id="layer-caption"></p>
+
+      <div class="keyboard-wrap" id="keyboard-wrap"></div>
+
+      <div class="keyboard-legend">
+        <span class="leg-item"><span class="leg-swatch leg-mod"></span>Modifier / system</span>
+        <span class="leg-item"><span class="leg-swatch leg-layer"></span>Layer switch</span>
+        <span class="leg-item"><span class="leg-swatch leg-fn"></span>Function key</span>
+        <span class="leg-item"><span class="leg-swatch leg-rgb"></span>RGB control</span>
+        <span class="leg-item"><span class="leg-swatch leg-empty"></span>Empty / transparent</span>
+      </div>
+    </section>
+
+    <!-- ─── ENCODER TABLE ─────────────────────── -->
+    <section class="prose-section">
+      <h2>Encoder map</h2>
+      <div class="specs-table">
+        <div class="st-row st-header">
+          <span class="st-k">Layer</span>
+          <span class="st-v two-col"><span>Left encoder</span><span>Right encoder</span></span>
+        </div>
+        <div class="st-row">
+          <span class="st-k">00 Default</span>
+          <span class="st-v two-col"><span>Volume −/+</span><span>PgUp / PgDn</span></span>
+        </div>
+        <div class="st-row">
+          <span class="st-k">01 Symbols</span>
+          <span class="st-v two-col"><span>RGB Hue −/+</span><span>RGB Sat −/+</span></span>
+        </div>
+        <div class="st-row">
+          <span class="st-k">02 Mouse</span>
+          <span class="st-v">Transparent (pass-through to layer 0)</span>
+        </div>
+        <div class="st-row">
+          <span class="st-k">03 Gaming</span>
+          <span class="st-v">Transparent (pass-through to layer 0)</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── RESOURCES ─────────────────────────── -->
+    <section class="prose-section outro-section">
+      <h2>Resources</h2>
+      <ul class="link-list">
+        <li><a href="https://pandakb.com/guides/lily58-rgb-mx-build-guide/" target="_blank" rel="noopener">PandaKB — Lily58 RGB MX Build Guide</a></li>
+        <li><a href="https://github.com/victorgalvez/lily58-config" target="_blank" rel="noopener">Firmware source — QMK + Vial config (GitHub)</a></li>
+        <li><a href="https://qmk.fm" target="_blank" rel="noopener">QMK Firmware</a></li>
+        <li><a href="https://get.vial.today" target="_blank" rel="noopener">Vial — live remap GUI</a></li>
+        <li><a href="https://pandakb.com" target="_blank" rel="noopener">PandaKB store</a></li>
+      </ul>
+    </section>
+
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <a href="https://victorgalvez.dev">← victorgalvez.dev</a>
+      <span>Victor Galvez · 2025</span>
+    </div>
+  </footer>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
