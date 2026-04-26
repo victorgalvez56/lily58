@@ -62,7 +62,7 @@ After full assembly the entire RGB matrix was dead. A multimeter traced the brea
 
 Running [Vial](https://get.vial.today) on top of QMK, targeting `pandakb/lily58_rgb_mx`. Vial adds a live USB remap GUI — rearrange any key without recompiling or reflashing.
 
-Config source: [`lily58-config`](https://github.com/victorgalvez56/lily58-config)
+Config source: [`config/`](https://github.com/victorgalvez56/lily58/tree/main/config)
 
 Flash by holding the reset button while plugging in each half — the RP2040 mounts as a USB drive, drop the `.uf2` onto it.
 
