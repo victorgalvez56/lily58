@@ -1,21 +1,18 @@
 <div align="center">
 
-# Lily58 RGB MX — Build Log
+# Lily58 RGB MX
 
-> *58 keys, hand-soldered, no regrets.*
+> *58 keys. 200 solder points. One dead LED chain.*
 
-Interactive build article for a hand-soldered Lily58 RGB MX split keyboard. Includes an animated keymap visualizer, embedded build video, and full build guide. Built with Vite, TypeScript, and GSAP.
+Hand-soldered split keyboard built from a bare PandaKB kit. RP2040 microcontrollers, SK6812MINI-E per-key RGB, hotswap MX sockets, dual rotary encoders, and a custom 4-layer QMK + Vial firmware adapted from a ZSA Moonlander layout.
 
-[**Read →**](https://lily58.victorgalvez.dev)
+[**Build log →**](https://lily58.victorgalvez.dev)
 
-![Lily58 RGB MX preview](docs/preview.gif)
+![Lily58 RGB MX — first light](docs/preview.gif)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-FF2E4D.svg)](LICENSE)
-[![Built with GSAP](https://img.shields.io/badge/GSAP-3.12-88CE02.svg)](https://gsap.com)
-[![Vite](https://img.shields.io/badge/Vite-6-646CFF.svg)](https://vitejs.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6.svg)](https://www.typescriptlang.org)
-
-[**github.com/victorgalvez56/lily58**](https://github.com/victorgalvez56/lily58)
+[![QMK](https://img.shields.io/badge/QMK-Vial-FF2E4D.svg)](https://get.vial.today)
+[![MCU](https://img.shields.io/badge/MCU-RP2040-555555.svg)](https://www.raspberrypi.com/products/rp2040)
+[![Switches](https://img.shields.io/badge/Switches-MX_hotswap-888888.svg)](#)
 
 </div>
 
@@ -23,79 +20,71 @@ Interactive build article for a hand-soldered Lily58 RGB MX split keyboard. Incl
 
 ## Overview
 
-A one-page article documenting the build of a [Lily58 RGB MX](https://pandakb.com) split keyboard from bare PCB to finished product. The page covers the bill of materials, 7-step build guide, common failure modes (LED chain orientation), and QMK + Vial firmware setup.
+The [Lily58 RGB MX by PandaKB](https://pandakb.com/guides/lily58-rgb-mx-build-guide/) is a 58-key column-staggered split keyboard with per-key RGB and a wired (TRRS) split connection. Both halves run independent RP2040 microcontrollers. I built this to address RSI symptoms from long coding sessions — a split board keeps both hands at shoulder width with neutral wrists.
 
-The centerpiece is a live interactive keyboard renderer that shows all 4 keymap layers — each key rendered from TypeScript data, switching layers with a staggered GSAP animation.
+The full interactive build log with a live keymap visualizer is at [lily58.victorgalvez.dev](https://lily58.victorgalvez.dev).
 
-## Tech stack
+## Bill of materials
 
-| Layer | Tech |
-|-------|------|
-| Build | Vite 6 |
-| Language | TypeScript 5.7 |
-| Animation | GSAP 3.12 + ScrollTrigger |
-| Typography | Lora (serif headings) + Inter |
-| Keyboard renderer | Vanilla DOM, data-driven from `src/keymap.ts` |
-| Deployment | Caddy static file server |
+| Component | Qty | Notes |
+|---|---|---|
+| Diodes | 58 | Stripe direction must match PCB silkscreen |
+| Per-key LEDs | 58 | SK6812MINI-E — face up, toward keycaps |
+| Underglow LEDs | 12 | WS2812B-5050 — face down, toward PCB |
+| Hotswap sockets | 58 | MX |
+| Rotary encoders | 2 | EC11 |
+| MCU | 2 | RP2040 ProMicro, one per half |
+| OLED modules | 2 | 0.91" |
+| TRRS jacks | 2 | Wired configuration |
+| Other | — | Reset switches, header pins/sockets, USBLC6-2SC6, resistors |
 
-## Quick start
+## Build order
 
-```bash
-npm install
-npm run dev       # dev server at http://localhost:5173
-npm run build     # production build → dist/
-npm run preview   # preview built output
-```
+Follow this order — desoldering on a dense board is painful.
 
-## Project structure
+1. **Diodes** — match stripe direction to silkscreen. Do these first on a clear board.
+2. **Per-key LEDs (SK6812MINI-E)** — face up, align the notch. Under 3 seconds per LED or you'll lift pads.
+3. **Underglow LEDs (WS2812B-5050)** — face down. Same notch-alignment rule.
+4. **Hotswap sockets** — straightforward; ensure both pads wet properly.
+5. **USBLC6-2SC6 & resistors** — bottom side, wired config. Protects the USB data lines.
+6. **MCU (RP2040)** — chip face down, leave two top holes open. Trim protruding pins. Handle the USB port with care — it's the most fragile part.
+7. **Reset switch → OLED → TRRS jack → encoders** — in that order.
 
-```
-.
-├── src/
-│   ├── main.ts       # GSAP animations + keyboard renderer + sound toggle
-│   ├── keymap.ts     # Layer definitions — all 4 layers as typed data
-│   └── style.css     # Design tokens + component styles
-├── public/
-│   ├── teaser.mp4    # Build video (rendered with Remotion)
-│   └── teaser.gif    # Compressed version for README
-└── docs/
-    └── preview.gif   # README embed
-```
+## The bug: all 70 LEDs went dark
 
-## Keymap layers
+WS2812-type LEDs run as a single daisy chain — data flows LED 1 → 2 → 3 → … → 70. One bad joint on LED #1 and every downstream LED gets no signal and stays dark.
 
-All layers are defined in `src/keymap.ts` as typed `LayerData` objects. Switching layers triggers a GSAP stagger animation — keys fade out in random order, new keys fade in sequentially.
+After full assembly the entire RGB matrix was dead. A multimeter traced the break to the first LED in the chain. Reflowed the joint — all 70 came back on.
 
-| # | Name | Purpose |
-|---|------|---------|
-| 0 | Default | QWERTY base with home-row mods |
-| 1 | Symbols | Programming symbols, F-keys, numpad |
+> If your RGB matrix is fully dead, reflow LED #1 before replacing anything.
+
+## Firmware
+
+Running [Vial](https://get.vial.today) on top of QMK, targeting `pandakb/lily58_rgb_mx`. Vial adds a live USB remap GUI — rearrange any key without recompiling or reflashing.
+
+Config source: [`lily58-config`](https://github.com/victorgalvez56/lily58-config)
+
+Flash by holding the reset button while plugging in each half — the RP2040 mounts as a USB drive, drop the `.uf2` onto it.
+
+## Keymap
+
+4 layers. Full interactive visualizer at [lily58.victorgalvez.dev](https://lily58.victorgalvez.dev).
+
+| Layer | Name | Purpose |
+|---|---|---|
+| 0 | Default | QWERTY base — home-row mods, adapted from ZSA Moonlander |
+| 1 | Symbols | Programming symbols on home row, F-keys, numpad |
 | 2 | Mouse + Media | Cursor, scroll, volume, media transport |
-| 3 | Gaming | Flat WASD, right half inactive |
+| 3 | Gaming | Flat WASD, right half inactive for mouse |
 
-To add or modify a layer, edit the `LAYERS` array in `src/keymap.ts`. Key types (`mod`, `layer`, `fn`, `rgb`, `empty`) map to CSS classes for color-coding.
+**Encoders:** Left = volume up/down · Right = scroll up/down
 
-## Scroll animations
+## Tools
 
-Every section animates in on scroll via `ScrollTrigger`. Sections use `gsap.set()` to initialize invisible + offset, then `gsap.to()` with a `scrollTrigger` to play on entry. The keymap section uses a timeline with staggered reveals for the tabs, caption, keyboard, and legend.
-
-## Contributing
-
-PRs welcome — the codebase is ~400 lines total.
-
-1. **Fork → clone → branch** (`git checkout -b feat/your-thing`)
-2. `npm run dev` to start
-3. One change per PR — keep diffs readable
-4. No formatting-only commits mixed with logic changes
-
-### Good first issues
-
-- Add a 5th layer (Navigation / arrow keys)
-- Add keyboard half toggle (show only left or right half)
-- Animate the layer caption text change (currently instant)
-- Mobile: add swipe gesture to switch layers
-- Add a "copy keymap as QMK JSON" button
-
-## Acknowledgments
-
-Build video produced with [Remotion](https://remotion.dev). Source footage from the original ~2h build session compressed to a ~22s teaser using custom Remotion compositions.
+| Tool | Notes |
+|---|---|
+| Soldering iron | Temperature-adjustable — 300–350 °C |
+| Solder wire | 60%+ tin |
+| Fine tweezers | Antistatic, for SMD components |
+| Multimeter | Essential for debugging LED chains |
+| Solder paste | Optional — helps with LEDs and diodes |
