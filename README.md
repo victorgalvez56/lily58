@@ -15,6 +15,8 @@ Interactive build article for a hand-soldered Lily58 RGB MX split keyboard. Incl
 [![Vite](https://img.shields.io/badge/Vite-6-646CFF.svg)](https://vitejs.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6.svg)](https://www.typescriptlang.org)
 
+[**github.com/victorgalvez56/lily58**](https://github.com/victorgalvez56/lily58)
+
 </div>
 
 ---
